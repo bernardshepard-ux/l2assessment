@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { categorizeMessage } from '../utils/llmHelper'
+import { processCustomerMessage } from '../utils/intentProcessor'
 import { calculateUrgency } from '../utils/urgencyScorer'
 import { getRecommendedAction } from '../utils/templates'
 
@@ -19,8 +20,9 @@ function AnalyzePage() {
   }, [])
 
   const handleAnalyze = async () => {
-    if (!message.trim()) {
-      alert('Please enter a message to analyze')
+    const intentCheck = processCustomerMessage(message)
+    if (intentCheck.errorText) {
+      alert(intentCheck.errorText)
       return
     }
 
@@ -28,8 +30,7 @@ function AnalyzePage() {
     setResults(null)
     
     try {
-      // Run categorization (LLM call)
-      const { category, reasoning } = await categorizeMessage(message)
+      const { category, reasoning, intent, confidence, matchedTokens } = await categorizeMessage(message)
       
       // Calculate urgency (rule-based)
       const urgency = calculateUrgency(message)
@@ -40,6 +41,9 @@ function AnalyzePage() {
       const analysisResult = {
         message,
         category,
+        intent,
+        confidence,
+        matchedTokens,
         urgency,
         recommendedAction,
         reasoning,
@@ -136,6 +140,25 @@ function AnalyzePage() {
                   {results.category}
                 </div>
               </div>
+
+              {results.intent && (
+                <div>
+                  <div className="text-sm font-semibold text-gray-600 mb-1">Detected Intent</div>
+                  <div className="inline-block bg-indigo-100 text-indigo-800 px-4 py-2 rounded-lg font-semibold">
+                    {results.intent.replace(/_/g, ' ')}
+                    {results.confidence > 0 && (
+                      <span className="ml-2 text-sm font-normal">
+                        ({Math.round(results.confidence * 100)}% confidence)
+                      </span>
+                    )}
+                  </div>
+                  {results.matchedTokens?.length > 0 && (
+                    <div className="text-sm text-gray-500 mt-1">
+                      Matched: {results.matchedTokens.join(', ')}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <div className="text-sm font-semibold text-gray-600 mb-1">Urgency Level</div>

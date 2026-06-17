@@ -6,7 +6,8 @@ const actionTemplates = {
   "Billing Issue": "Ask user to check billing portal.",
   "Technical Problem": "Suggest user to restart their browser.",
   "General Inquiry": "Respond with FAQ link.",
-  "Feature Request": "Ask user to check billing portal.",
+  "Feature Request": "Log the request and share the product feedback channel.",
+  "Shipping & Delivery": "Provide tracking information and estimated delivery timeline.",
   "Unknown": "Review manually."
 }
 
