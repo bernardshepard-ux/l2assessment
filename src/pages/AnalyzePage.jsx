@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { categorizeMessage } from '../utils/llmHelper'
-import { processCustomerMessage } from '../utils/intentProcessor'
+import {
+  processCustomerMessage,
+  intentToCategory,
+  buildIntentReasoning,
+} from '../utils/intentProcessor'
 import { calculateUrgency } from '../utils/urgencyScorer'
 import { getRecommendedAction } from '../utils/templates'
 
@@ -30,14 +34,45 @@ function AnalyzePage() {
     setResults(null)
     
     try {
-      const { category, reasoning, intent, confidence, matchedTokens } = await categorizeMessage(message)
-      
-      // Calculate urgency (rule-based)
-      const urgency = calculateUrgency(message)
-      
-      // Get recommended action (template-based)
+      let category
+      let reasoning
+      let intent
+      let confidence
+      let matchedTokens
+      let urgency
+      let urgencySource
+      let llmConfidence
+
+      try {
+        const result = await categorizeMessage(message)
+
+        category = result.category
+        reasoning = result.reasoning
+        intent = result.intent
+        confidence = result.confidence
+        matchedTokens = result.matchedTokens
+        llmConfidence = result.llmConfidence
+
+        if (result.classificationSource === 'intentProcessor') {
+          urgency = calculateUrgency(message)
+        } else {
+          urgency = result.urgency
+          urgencySource = 'llm'
+        }
+      } catch (categorizeError) {
+        console.warn('categorizeMessage failed, using rule-based fallback:', categorizeError.message)
+
+        category = intentToCategory(intentCheck.intent)
+        reasoning = buildIntentReasoning(intentCheck)
+        intent = intentCheck.intent
+        confidence = intentCheck.confidence
+        matchedTokens = intentCheck.matchedTokens
+        urgency = calculateUrgency(message)
+        urgencySource = 'ruleBasedFallback'
+      }
+
       const recommendedAction = getRecommendedAction(category)
-      
+
       const analysisResult = {
         message,
         category,
@@ -45,6 +80,8 @@ function AnalyzePage() {
         confidence,
         matchedTokens,
         urgency,
+        urgencySource,
+        llmConfidence,
         recommendedAction,
         reasoning,
         timestamp: new Date().toISOString()
